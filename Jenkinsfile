@@ -126,9 +126,9 @@ pipeline {
                         echo "Checking for large files (>10MB):"
                         find . -size +10M -type f | head -5
                         
-                        # Verificar que no hay credenciales hardcodeadas
+                        # Verificar que no hay credenciales hardcodeadas - CORREGIDO
                         echo "Checking for potential credentials:"
-                        grep -r -i "password\|secret\|key\|token" . --include="*.js" --include="*.py" --include="*.java" | head -5 || echo "No suspicious patterns found"
+                        grep -r -i -E "(password|secret|key|token)" . --include="*.js" --include="*.py" --include="*.java" | head -5 || echo "No suspicious patterns found"
                         
                         # Contar líneas de código
                         echo "Lines of code:"
