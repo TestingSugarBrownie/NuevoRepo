@@ -1,53 +1,114 @@
 pipeline {
     agent any
     
+    environment {
+        SONAR_SCANNER_HOME = '/opt/sonar-scanner'
+        PATH = "${SONAR_SCANNER_HOME}/bin:${env.PATH}"
+    }
+    
     stages {
         stage('Checkout') {
             steps {
+                echo '📦 Clonando el repositorio...'
                 checkout scm
             }
         }
         
-        stage('GitInspector Analysis') {
+        stage('Build') {
             steps {
+                echo '🔨 Construyendo el proyecto...'
+                script {
+                    // Adapta este comando según tu tipo de proyecto
+                    // Para Java/Maven: sh 'mvn clean package'
+                    // Para Python: sh 'pip install -r requirements.txt'
+                    // Para Node.js: sh 'npm install && npm run build'
+                    sh 'echo "Build completado"'
+                }
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                echo '🧪 Ejecutando tests...'
+                script {
+                    // Adapta según tu proyecto
+                    // Para Java/Maven: sh 'mvn test'
+                    // Para Python: sh 'pytest'
+                    // Para Node.js: sh 'npm test'
+                    sh 'echo "Tests completados"'
+                }
+            }
+        }
+        
+        stage('SonarQube Analysis') {
+            steps {
+                echo '🔍 Analizando código con SonarQube...'
+                script {
+                    withSonarQubeEnv('SonarQube') {
+                        sh """
+                            sonar-scanner \
+                              -Dsonar.projectKey=${env.JOB_NAME} \
+                              -Dsonar.projectName=${env.JOB_NAME} \
+                              -Dsonar.projectVersion=${env.BUILD_NUMBER} \
+                              -Dsonar.sources=. \
+                              -Dsonar.host.url=http://sonarqube:9000
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Quality Gate') {
+            steps {
+                echo '✅ Verificando Quality Gate...'
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: false
+                }
+            }
+        }
+        
+        stage('GitInspector Report') {
+            steps {
+                echo '📊 Generando reporte de GitInspector...'
                 script {
                     sh '''
-                        # Crear directorio para reportes
-                        mkdir -p gitinspector-reports
-                        
-                        # Ejecutar GitInspector con formato HTML
-                        gitinspector -f java,js,py,groovy,yaml,yml,html,css,json --format html . > gitinspector-reports/report.html || true
-                        
-                        echo "GitInspector analysis completed"
+                        gitinspector -f java,py,js,jsx,ts,tsx,html,css,xml,gradle,kt,swift \
+                        --format=html \
+                        --grading \
+                        --timeline \
+                        -w \
+                        > gitinspector-report.html || echo "GitInspector completado con advertencias"
                     '''
                 }
             }
         }
         
-        stage('Publish GitInspector Report') {
+        stage('Publish Reports') {
             steps {
+                echo '📄 Publicando reportes...'
                 publishHTML([
                     allowMissing: false,
                     alwaysLinkToLastBuild: true,
                     keepAll: true,
-                    reportDir: 'gitinspector-reports',
-                    reportFiles: 'report.html',
-                    reportName: 'GitInspector',
-                    reportTitles: 'GitInspector Analysis'
+                    reportDir: '.',
+                    reportFiles: 'gitinspector-report.html',
+                    reportName: 'GitInspector Report',
+                    reportTitles: 'Análisis de Código con GitInspector'
                 ])
             }
         }
     }
     
     post {
-        always {
-            echo 'Pipeline completed'
-        }
         success {
-            echo 'GitInspector analysis successful'
+            echo '✅ Pipeline ejecutado exitosamente!'
         }
         failure {
-            echo 'Pipeline failed'
+            echo '❌ El pipeline falló.'
+        }
+        always {
+            echo '🧹 Limpiando workspace...'
+            cleanWs()
         }
     }
 }
