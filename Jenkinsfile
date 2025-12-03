@@ -2,7 +2,6 @@ pipeline {
     agent any
     
     environment {
-        SONAR_SCANNER_HOME = '/opt/sonar-scanner'
         PATH = "${SONAR_SCANNER_HOME}/bin:${env.PATH}"
     }
     
@@ -40,32 +39,6 @@ pipeline {
             }
         }
         
-        stage('SonarQube Analysis') {
-            steps {
-                echo '🔍 Analizando código con SonarQube...'
-                script {
-                    withSonarQubeEnv('SonarQube') {
-                        sh """
-                            sonar-scanner \
-                              -Dsonar.projectKey=${env.JOB_NAME} \
-                              -Dsonar.projectName=${env.JOB_NAME} \
-                              -Dsonar.projectVersion=${env.BUILD_NUMBER} \
-                              -Dsonar.sources=. \
-                              -Dsonar.host.url=http://sonarqube:9000
-                        """
-                    }
-                }
-            }
-        }
-        
-        stage('Quality Gate') {
-            steps {
-                echo '✅ Verificando Quality Gate...'
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: false
-                }
-            }
-        }
         
         stage('GitInspector Report') {
             steps {
